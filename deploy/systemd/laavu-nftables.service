@@ -1,0 +1,14 @@
+[Unit]
+Description=Laavu: правила nftables между агентами
+Wants=network-pre.target
+Before=network-pre.target
+After=ufw.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/nft -f /etc/laavu/nftables.nft
+ExecStop=/usr/sbin/nft delete table inet laavu
+
+[Install]
+WantedBy=multi-user.target

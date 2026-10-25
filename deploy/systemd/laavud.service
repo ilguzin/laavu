@@ -1,0 +1,41 @@
+[Unit]
+Description=Laavu: демон
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=laavud
+Group=laavud
+ExecStart={{.Laavud}} serve
+Restart=always
+RestartSec=2
+StateDirectory=laavu
+StateDirectoryMode=0711
+# К домам агентов демон не ходит вообще: только к сокетам воркеров и к портам агентов для прокси.
+ProtectSystem=strict
+ProtectHome=yes
+InaccessiblePaths=-/srv/laavu/agents
+ReadWritePaths=/run/laavu/http /run/laavu/hooks
+PrivateTmp=yes
+PrivateDevices=yes
+NoNewPrivileges=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
+UMask=0077
+MemoryMax=512M
+TasksMax=512
+
+[Install]
+WantedBy=multi-user.target

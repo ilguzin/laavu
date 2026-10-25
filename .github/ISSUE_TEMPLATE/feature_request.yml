@@ -1,0 +1,19 @@
+name: Предложение
+description: Новая возможность или изменение поведения
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Какую задачу решаете
+      description: Что вы делаете и что сейчас мешает.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Как это могло бы работать
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Как обходитесь сейчас

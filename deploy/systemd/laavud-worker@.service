@@ -1,0 +1,20 @@
+[Unit]
+Description=Laavu: воркер агента %i
+Requires=laavud-worker@%i.socket
+After=laavud-worker@%i.socket systemd-user-sessions.service
+
+[Service]
+User=%i
+ExecStart={{.Laavud}} worker
+Restart=always
+RestartSec=2
+# Юнит идёт без PAM, поэтому umask агента задаётся здесь.
+UMask=0077
+NoNewPrivileges=yes
+# tmux живёт не здесь, а в пользовательском экземпляре systemd агента
+# (systemd-run --user --scope), поэтому остановка воркера сессии не трогает.
+KillMode=control-group
+MemoryMax=256M
+
+[Install]
+WantedBy=multi-user.target

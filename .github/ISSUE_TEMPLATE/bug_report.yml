@@ -1,0 +1,32 @@
+name: Ошибка
+description: Что-то работает не так, как описано
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Об уязвимостях — не здесь, а по SECURITY.md.
+  - type: textarea
+    id: what
+    attributes:
+      label: Что случилось
+      description: Шаги, что ожидали и что получили.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Версия
+      description: Вывод `laavu version` или коммит, из которого собрано.
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Сервер и устройство
+      description: ОС сервера, браузер и устройство, с которого работали.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Журналы
+      description: "`sudo laavu diag`, `journalctl -u laavud` или консоль браузера. Перед вставкой уберите имена, адреса и пути, которые не хотите показывать."
+      render: text

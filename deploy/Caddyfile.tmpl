@@ -1,0 +1,30 @@
+# Caddy для Laavu. Генерирует laavu install; правки руками перезапишутся.
+{
+	# API администратора Caddy слушал бы localhost:2019, и агент мог бы перенастроить прокси.
+	admin off
+{{- if .Email}}
+	email {{.Email}}
+{{- end}}
+}
+
+{{.AppSite}} {
+{{- if .Internal}}
+	# on_demand: для имён *.ts.net Caddy сам идёт за сертификатом к tailscaled
+	# и без него внутренний CA не выпускает сертификат заранее.
+	tls internal {
+		on_demand
+	}
+{{- end}}
+	reverse_proxy unix//run/laavu/http/app.sock
+}
+
+{{.AuxSites}} {
+{{- if .Internal}}
+	# on_demand: для имён *.ts.net Caddy сам идёт за сертификатом к tailscaled
+	# и без него внутренний CA не выпускает сертификат заранее.
+	tls internal {
+		on_demand
+	}
+{{- end}}
+	reverse_proxy unix//run/laavu/http/aux.sock
+}

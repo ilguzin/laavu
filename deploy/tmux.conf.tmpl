@@ -1,0 +1,25 @@
+# Общий конфиг tmux для сессий Laavu: tmux -L laavu -f /etc/laavu/tmux.conf.
+# tmux для пользователя невидим: вкладки, статусы и клавиши рисует клиент.
+set -g status off
+set -g prefix None
+set -g prefix2 None
+set -g default-terminal "tmux-256color"
+set -ga terminal-features ",xterm-256color:RGB:usstyle:hyperlinks:sync:clipboard"
+set -g set-clipboard on
+set -sg escape-time 10
+set -s extended-keys on
+set -g history-limit 50000
+set -g mouse on
+setw -g aggressive-resize on
+set -g window-size latest
+set -g remain-on-exit on
+setw -g monitor-activity on
+set -g visual-activity off
+set -g focus-events on
+
+# Хуки сообщают демону, что список сессий изменился; демон сверяет снимок целиком,
+# поэтому имя сессии в хуке не нужно. Форматы внутри run-shell — только через #{q:…}.
+set-hook -g session-created "run-shell -b '{{.Laavud}} hook tmux session-created'"
+set-hook -g session-closed "run-shell -b '{{.Laavud}} hook tmux session-closed'"
+set-hook -g session-renamed "run-shell -b '{{.Laavud}} hook tmux session-renamed'"
+set-hook -g pane-died "run-shell -b '{{.Laavud}} hook tmux pane-died'"

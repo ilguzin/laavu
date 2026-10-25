@@ -1,0 +1,52 @@
+# Сборка релиза по тегу v*. Подписи здесь нет и быть не должно: ключ проекта
+# хранится не в CI. После сборки владелец скачивает manifest.json, подписывает
+# его (laavu release sign) и загружает manifest.json.sig в тот же релиз.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Тесты
+        run: |
+          sudo apt-get install -y tmux
+          go vet ./...
+          go test ./...
+      - name: Клиент
+        run: make web
+      - name: Бинарники
+        env:
+          PROJECT_KEY: ${{ vars.LAAVU_PROJECT_KEY }}
+        run: |
+          mkdir -p dist
+          V=${GITHUB_REF_NAME#v}
+          LD="-s -w -X main.Version=$V -X github.com/ilguzin/laavu/internal/release.ProjectKey=$PROJECT_KEY"
+          for arch in amd64 arm64; do
+            for cmd in laavu laavud; do
+              CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -trimpath -ldflags "$LD" -o dist/$cmd-linux-$arch ./cmd/$cmd
+            done
+          done
+          # laavu для ноутбука владельца: установка по SSH.
+          for os_arch in darwin/amd64 darwin/arm64 windows/amd64; do
+            os=${os_arch%/*}; arch=${os_arch#*/}; ext=""; [ $os = windows ] && ext=.exe
+            CGO_ENABLED=0 GOOS=$os GOARCH=$arch go build -trimpath -ldflags "$LD" -o dist/laavu-$os-$arch$ext ./cmd/laavu
+          done
+          go run ./cmd/laavu release manifest --dir dist --version "$V"
+      - name: Черновик релиза
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --draft --title "$GITHUB_REF_NAME" --notes "Неподписанный черновик: подпишите manifest.json и загрузите manifest.json.sig перед публикацией."

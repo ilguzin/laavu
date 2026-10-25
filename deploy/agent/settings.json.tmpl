@@ -1,0 +1,38 @@
+{
+  "hooks": {
+    "SessionStart": [
+      { "hooks": [
+        { "type": "command", "command": "{{.Laavud}} hook claude", "timeout": 5 },
+        { "type": "command", "command": "{{.Laavud}} hook guard", "timeout": 5 }
+      ] }
+    ],
+    "UserPromptSubmit": [
+      { "hooks": [ { "type": "command", "command": "{{.Laavud}} hook claude", "timeout": 5 } ] }
+    ],
+    "PreToolUse": [
+      { "matcher": "*", "hooks": [ { "type": "command", "command": "{{.Laavud}} hook claude", "timeout": 5 } ] }
+    ],
+    "PostToolUse": [
+      { "matcher": "*", "hooks": [
+        { "type": "command", "command": "{{.Laavud}} hook claude", "timeout": 5 },
+        { "type": "command", "command": "{{.Laavud}} hook guard", "timeout": 5 }
+      ] }
+    ],
+    "Stop": [
+      { "hooks": [
+        { "type": "command", "command": "{{.Laavud}} hook claude", "timeout": 5 },
+        { "type": "command", "command": "{{.Laavud}} hook guard", "timeout": 15 }
+      ] }
+    ],
+    "Notification": [
+      { "hooks": [ { "type": "command", "command": "{{.Laavud}} hook claude", "timeout": 5 } ] }
+    ],
+    "SessionEnd": [
+      { "hooks": [ { "type": "command", "command": "{{.Laavud}} hook claude", "timeout": 5 } ] }
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "{{.Laavud}} hook statusline"
+  }
+}

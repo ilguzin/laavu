@@ -1,0 +1,13 @@
+/bin/
+/dist/
+/web/node_modules/
+/web/dist/
+/test/e2e/node_modules/
+/test/e2e/test-results/
+/test/e2e/playwright-report/
+/internal/webui/dist/*
+!/internal/webui/dist/.keep
+*.test
+/test/vm/.last-register-link
+/test/e2e/.state-*/
+/test/e2e/.server-*.log
