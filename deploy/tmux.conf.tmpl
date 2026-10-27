@@ -1,0 +1,25 @@
+# Shared tmux config for Laavu sessions: tmux -L laavu -f /etc/laavu/tmux.conf.
+# tmux is invisible to the user: tabs, statuses and keys are drawn by the client.
+set -g status off
+set -g prefix None
+set -g prefix2 None
+set -g default-terminal "tmux-256color"
+set -ga terminal-features ",xterm-256color:RGB:usstyle:hyperlinks:sync:clipboard"
+set -g set-clipboard on
+set -sg escape-time 10
+set -s extended-keys on
+set -g history-limit 50000
+set -g mouse on
+setw -g aggressive-resize on
+set -g window-size latest
+set -g remain-on-exit on
+setw -g monitor-activity on
+set -g visual-activity off
+set -g focus-events on
+
+# Hooks tell the daemon the session list changed; the daemon reconciles the whole snapshot,
+# so the hook does not need the session name. Formats inside run-shell only via #{q:...}.
+set-hook -g session-created "run-shell -b '{{.Laavud}} hook tmux session-created'"
+set-hook -g session-closed "run-shell -b '{{.Laavud}} hook tmux session-closed'"
+set-hook -g session-renamed "run-shell -b '{{.Laavud}} hook tmux session-renamed'"
+set-hook -g pane-died "run-shell -b '{{.Laavud}} hook tmux pane-died'"

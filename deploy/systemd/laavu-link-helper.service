@@ -1,0 +1,9 @@
+[Unit]
+Description=Laavu: root helper for the console link
+Requires=laavu-link-helper.socket
+
+[Service]
+# Runs as root: updates, firewall and agents need it. It accepts only jobs signed
+# by the pinned console key, for the operations and rights in /etc/laavu/link.toml,
+# and exits after a minute without requests.
+ExecStart={{.Laavu}} link helper

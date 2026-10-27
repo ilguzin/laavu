@@ -1,0 +1,20 @@
+[Unit]
+Description=Laavu: worker for agent %i
+Requires=laavud-worker@%i.socket
+After=laavud-worker@%i.socket systemd-user-sessions.service
+
+[Service]
+User=%i
+ExecStart={{.Laavud}} worker
+Restart=always
+RestartSec=2
+# The unit runs without PAM, so the agent umask is set here.
+UMask=0077
+NoNewPrivileges=yes
+# tmux lives not here but in the agent's user instance of systemd
+# (systemd-run --user --scope), so stopping the worker does not touch sessions.
+KillMode=control-group
+MemoryMax=256M
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
+    <meta name="theme-color" content="#0E1311" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <title>Laavu</title>
+    <script src="/splash.js"></script>
+    <style>
+      /* Splash: shown until the app knows who you are. The main stylesheet comes with the bundle, so colors are here. */
+      #splash {
+        --sp-bg: #0e1311;
+        --sp-fg: #e6e9e4;
+        --sp-muted: #5d6862;
+        --sp-ember: #f08a3c;
+        position: fixed;
+        inset: 0;
+        z-index: 1000;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        background: var(--sp-bg);
+        color: var(--sp-fg);
+        transition: opacity 0.3s ease, visibility 0.3s;
+      }
+      :root[data-theme='light'] #splash {
+        --sp-bg: #f3f4f1;
+        --sp-fg: #18201c;
+        --sp-muted: #8e9a93;
+        --sp-ember: #b5531c;
+      }
+      #splash.gone {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+      }
+      #splash svg {
+        width: 88px;
+        height: 88px;
+        overflow: visible;
+      }
+      #splash .sp-tent {
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.4;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-dasharray: 1;
+        stroke-dashoffset: 1;
+        animation: sp-draw 0.9s cubic-bezier(0.6, 0, 0.3, 1) 0.05s forwards;
+      }
+      #splash .sp-ember {
+        fill: var(--sp-ember);
+        transform-box: fill-box;
+        transform-origin: 50% 100%;
+        opacity: 0;
+        animation:
+          sp-light 0.5s ease-out 0.7s forwards,
+          sp-flicker 2.4s ease-in-out 1.2s infinite;
+      }
+      #splash .sp-glow {
+        fill: var(--sp-ember);
+        opacity: 0;
+        filter: blur(3px);
+        transform-box: fill-box;
+        transform-origin: 50% 100%;
+        animation: sp-glow 2.4s ease-in-out 1.2s infinite;
+      }
+      #splash .sp-host {
+        font: 500 13px/1 ui-monospace, 'JetBrains Mono', monospace;
+        letter-spacing: 0.02em;
+        color: var(--sp-muted);
+        min-height: 13px;
+        opacity: 0;
+        animation: sp-fade 0.6s ease 0.9s forwards;
+      }
+      @keyframes sp-draw {
+        to {
+          stroke-dashoffset: 0;
+        }
+      }
+      @keyframes sp-light {
+        from {
+          opacity: 0;
+          transform: scaleY(0.2);
+        }
+        to {
+          opacity: 1;
+          transform: scaleY(1);
+        }
+      }
+      @keyframes sp-flicker {
+        0%, 100% {
+          transform: scale(1, 1);
+        }
+        30% {
+          transform: scale(0.96, 1.07);
+        }
+        55% {
+          transform: scale(1.03, 0.95);
+        }
+        80% {
+          transform: scale(0.98, 1.04);
+        }
+      }
+      @keyframes sp-glow {
+        0%, 100% {
+          opacity: 0.25;
+          transform: scale(1.1);
+        }
+        50% {
+          opacity: 0.5;
+          transform: scale(1.35);
+        }
+      }
+      @keyframes sp-fade {
+        to {
+          opacity: 1;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #splash .sp-tent,
+        #splash .sp-ember,
+        #splash .sp-glow,
+        #splash .sp-host {
+          animation: none;
+          stroke-dashoffset: 0;
+          opacity: 1;
+        }
+        #splash .sp-glow {
+          opacity: 0.3;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="splash" role="status" aria-label="Loading Laavu">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path class="sp-glow" d="M12 11.5 8 20h8z" />
+        <path class="sp-tent" pathLength="1" d="M3 20 12 4l9 16" />
+        <path class="sp-ember" d="M12 11.5 8 20h8z" />
+      </svg>
+      <div class="sp-host"></div>
+    </div>
+    <div id="app"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,7 @@
+# Names that cannot be agent work folders (one per line).
+# Anything starting with a dot is always reserved.
+tmp
+bin
+go
+snap
+node_modules

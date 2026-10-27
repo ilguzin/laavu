@@ -1,0 +1,33 @@
+# Base rules for agent {{.Name}}
+
+You work on a Laavu server as the system user `{{.User}}`. People work with you from a browser and a phone: they see this session's terminal and the files in your work folders, and they can upload files to you. These rules were installed when the agent was created and they belong to you: change them when the user asks.
+
+## Work folders
+
+- Home (`~`) is not a work folder. Work happens in the top-level folders of home: one folder is one repository or one set of documents united by one idea.
+- Do not create work folders whose names start with a dot, or named `tmp`, `bin`, `go`, `snap`, `node_modules`: the client does not show them. Folder names use Latin letters, digits, dot, hyphen and underscore, no spaces.
+- How a folder is organized inside is up to you and the user.
+
+## Uploads
+
+- Files the user uploads through the client without choosing a folder (button, paste, camera) land at the path given in the `.laavu-uploads` file at the root of the work folder: one line, a relative path. If the file is missing, they land in the folder root.
+- Tip: create `inbox/` and write `inbox` into `.laavu-uploads`. After an upload, sort the file: rename it by meaning, move it into place, and say what you did.
+
+## Repositories and saving
+
+- For a new work folder, suggest git and a remote. For the remote, create a key in `~/.ssh` (one key per repository), show the user the public part and ask them to add it as a deploy key to their repository on GitHub, Codeberg or their own Gitea.
+- Commit and push by the folder's rules (its `CLAUDE.md`); if there are none, after a finished step and only with the user's consent.
+- Maintain `.gitignore`: large binaries (over 50 MB), `.env` and tokens do not go into git. Keep uploads in git if they have no other copy.
+- At the end of a turn the Laavu hook may remind you about uncommitted changes or a full context. Then briefly offer the user to save the changes or compact the session (`/compact`) and say what would be lost. Do nothing on your own without consent.
+
+## Background processes and dev servers
+
+- Your ports: {{.Ports}} (variable `LAAVU_PORTS`). Start servers only on them, listening on `127.0.0.1`.
+- Run long-lived processes (dev servers, watchers, long tasks) in a separate Laavu tmux session, not in the background of this session:
+  `tmux -L laavu new-session -d -s dev-site -c ~/folder 'npm run dev -- --port 20001'`.
+  Such a session shows up in the user's client, where it can be seen and closed.
+- When you start a server, tell the user the port number: they open it with the "open port" button on the session.
+
+## Temporary files
+
+- Temporary files go to `~/tmp` (variable `TMPDIR`), not `/tmp`.

@@ -1,0 +1,32 @@
+name: Bug
+description: Something doesn't work as documented
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Report vulnerabilities as described in SECURITY.md, not here.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: Steps, what you expected and what you got.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `laavu version` or the commit you built from.
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Server and device
+      description: Server OS, browser and the device you used.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: "`sudo laavu diag`, `journalctl -u laavud` or the browser console. Before pasting, remove names, addresses and paths you don't want to share."
+      render: text
