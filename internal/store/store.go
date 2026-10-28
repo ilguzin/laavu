@@ -56,6 +56,12 @@ CREATE TABLE IF NOT EXISTS invites (
 	created INTEGER NOT NULL,
 	expires INTEGER NOT NULL
 );
+-- agents a new user gets access to once they register from the link
+CREATE TABLE IF NOT EXISTS invite_access (
+	token_hash TEXT NOT NULL REFERENCES invites(token_hash) ON DELETE CASCADE,
+	agent TEXT NOT NULL,
+	PRIMARY KEY (token_hash, agent)
+);
 CREATE TABLE IF NOT EXISTS access (
 	user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 	agent TEXT NOT NULL,
@@ -238,15 +244,28 @@ type Invite struct {
 	UserID *int64 // nil means a new user
 	Role   string
 	Name   string
+	Agents []string // access granted on registration of a new user
 }
 
 // CreateInvite returns the link token; only its hash is stored.
 func (s *Store) CreateInvite(inv Invite, ttl time.Duration) (string, error) {
 	tok := RandomToken()
 	now := s.Now()
-	_, err := s.db.Exec(`INSERT INTO invites(token_hash, user_id, role, name, created, expires) VALUES (?,?,?,?,?,?)`,
-		hash(tok), inv.UserID, inv.Role, inv.Name, now.Unix(), now.Add(ttl).Unix())
-	return tok, err
+	tx, err := s.db.Begin()
+	if err != nil {
+		return "", err
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec(`INSERT INTO invites(token_hash, user_id, role, name, created, expires) VALUES (?,?,?,?,?,?)`,
+		hash(tok), inv.UserID, inv.Role, inv.Name, now.Unix(), now.Add(ttl).Unix()); err != nil {
+		return "", err
+	}
+	for _, a := range inv.Agents {
+		if _, err := tx.Exec(`INSERT OR IGNORE INTO invite_access(token_hash, agent) VALUES (?,?)`, hash(tok), a); err != nil {
+			return "", err
+		}
+	}
+	return tok, tx.Commit()
 }
 
 // PeekInvite validates a link without consuming it.
@@ -264,7 +283,19 @@ func (s *Store) PeekInvite(tok string) (*Invite, error) {
 	if uid.Valid {
 		inv.UserID = &uid.Int64
 	}
-	return &inv, nil
+	rows, err := s.db.Query(`SELECT agent FROM invite_access WHERE token_hash=? ORDER BY agent`, hash(tok))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var a string
+		if err := rows.Scan(&a); err != nil {
+			return nil, err
+		}
+		inv.Agents = append(inv.Agents, a)
+	}
+	return &inv, rows.Err()
 }
 
 // ConsumeInvite consumes a link.
@@ -326,6 +357,43 @@ func (s *Store) HasAccess(userID int64, agent string) (bool, error) {
 	var n int
 	err := s.db.QueryRow(`SELECT COUNT(*) FROM access WHERE user_id=? AND agent=?`, userID, agent).Scan(&n)
 	return n > 0, err
+}
+
+// DropAgent removes all access to the agent, including access promised by
+// unused links. Called when the agent is deleted, so that a new agent with the
+// same name does not inherit its users.
+func (s *Store) DropAgent(agent string) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec(`DELETE FROM access WHERE agent=?`, agent); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM invite_access WHERE agent=?`, agent); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// AgentsOf returns the agents the user has an access entry for, sorted by name.
+// An admin sees all agents regardless of these entries.
+func (s *Store) AgentsOf(userID int64) ([]string, error) {
+	rows, err := s.db.Query(`SELECT agent FROM access WHERE user_id=? ORDER BY agent`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var a string
+		if err := rows.Scan(&a); err != nil {
+			return nil, err
+		}
+		out = append(out, a)
+	}
+	return out, rows.Err()
 }
 
 // UsersWithAccess returns users with access to the agent. An admin sees all agents.

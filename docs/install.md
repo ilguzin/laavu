@@ -93,6 +93,14 @@ sudo laavud invite --admin
 
 If an admin already exists and you lost access, `sudo laavud reset-auth` removes all passkeys and prints a new admin link.
 
+To invite someone else, give them a member link with the agents they may use:
+
+```sh
+sudo laavud invite --agent demo
+```
+
+Without `--agent` the only agent is granted, or the command asks which ones if there are several. A member sees only these agents. Change it later with `sudo laavud access grant|revoke USER AGENT` and check with `sudo laavud access list`.
+
 To add your phone, open the menu in the left rail and choose **Add device**. Open that link on the phone within 15 minutes and create a passkey there. On the phone you can also add Laavu to the home screen. It works as an app, and push notifications on iOS only work that way.
 
 ## Sign Claude Code in
@@ -118,7 +126,7 @@ Each agent gets its own user, home directory, port range and memory limit (by de
 sudo laavu check-isolation
 ```
 
-`sudo laavu agent delete NAME` removes the agent and its home. Add `--keep-home` to keep the files.
+`sudo laavu agent delete NAME` removes the agent, its home and everyone's access to it. Add `--keep-home` to keep the files.
 
 ## Without a domain
 

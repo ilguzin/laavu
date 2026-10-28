@@ -2,6 +2,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -31,6 +32,7 @@ import (
 	"github.com/ilguzin/laavu/internal/webui"
 	"github.com/ilguzin/laavu/internal/wire"
 	"github.com/ilguzin/laavu/internal/worker"
+	"golang.org/x/term"
 )
 
 // Version is set at build time.
@@ -44,9 +46,14 @@ const usage = `laavud - the Laavu daemon.
                                 Claude Code hooks from the agent settings
   laavud hook tmux <event>      tmux hooks from /etc/laavu/tmux.conf
   laavud reset-auth             erase all passkeys and print an admin registration link
-  laavud invite [--admin] [--name NAME]
-                                registration link for a new user
+  laavud invite [--admin] [--name NAME] [--agent AGENT]...
+                                registration link for a new user; a member gets
+                                access to the given agents (asked if not given)
   laavud admin add NAME         make a user an admin
+  laavud access grant|revoke USER AGENT...
+                                give or take a member's access to agents
+  laavud access list [USER]     who has access to which agents
+  laavud access drop AGENT      remove everyone's access (on agent deletion)
   laavud priv ...               root operations: create-agent, delete-agent, check-isolation
   laavud call AGENT OP [JSON]
                                 request to an agent worker (diagnostics; as laavud or root)
@@ -75,6 +82,8 @@ func main() {
 		err = invite(args)
 	case "admin":
 		err = admin(args)
+	case "access":
+		err = access(args)
 	case "priv":
 		err = priv.Main(args)
 	case "dev":
@@ -289,7 +298,12 @@ func invite(args []string) error {
 	name := fs.String("name", "", "user name (by default the user picks it)")
 	quiet := fs.Bool("q", false, "print only the link")
 	ifNoAdmin := fs.Bool("if-no-admin", false, "do nothing if an admin already exists")
+	var agents agentList
+	fs.Var(&agents, "agent", "agent the member gets access to (repeatable, or comma-separated)")
 	fs.Parse(args)
+	if *isAdmin && len(agents) > 0 {
+		return errors.New("--agent is for members: an admin sees all agents")
+	}
 	st, cfg, err := openStore(*confDir)
 	if err != nil {
 		return err
@@ -306,8 +320,19 @@ func invite(args []string) error {
 	role := "member"
 	if *isAdmin {
 		role = "admin"
+	} else {
+		for _, a := range agents {
+			if err := agentExists(*confDir, a); err != nil {
+				return err
+			}
+		}
+		if len(agents) == 0 {
+			if agents, err = pickAgents(*confDir); err != nil {
+				return err
+			}
+		}
 	}
-	tok, err := st.CreateInvite(store.Invite{Role: role, Name: *name}, auth.InviteTTL)
+	tok, err := st.CreateInvite(store.Invite{Role: role, Name: *name, Agents: agents}, auth.InviteTTL)
 	if err != nil {
 		return err
 	}
@@ -336,6 +361,202 @@ func admin(args []string) error {
 		return fmt.Errorf("user %s: %w", args[1], err)
 	}
 	return st.SetRole(u.ID, "admin")
+}
+
+// agentList is a repeatable flag; each value may also be comma-separated.
+type agentList []string
+
+func (l *agentList) String() string { return strings.Join(*l, ",") }
+
+func (l *agentList) Set(v string) error {
+	for _, a := range strings.Split(v, ",") {
+		if a = strings.TrimSpace(a); a != "" {
+			*l = append(*l, a)
+		}
+	}
+	return nil
+}
+
+// agentNames lists the agents from the configuration by file name. Unlike
+// config.LoadAgents it does not resolve system users, which laavud does not need here.
+func agentNames(confDir string) ([]string, error) {
+	files, err := filepath.Glob(filepath.Join(confDir, "agents", "*.toml"))
+	if err != nil {
+		return nil, err
+	}
+	var out []string
+	for _, f := range files {
+		out = append(out, strings.TrimSuffix(filepath.Base(f), ".toml"))
+	}
+	return out, nil
+}
+
+func agentExists(confDir, name string) error {
+	if err := names.Agent(name); err != nil {
+		return fmt.Errorf("agent %s: %w", name, err)
+	}
+	if _, err := os.Stat(filepath.Join(confDir, "agents", name+".toml")); err != nil {
+		return fmt.Errorf("agent %s: not found", name)
+	}
+	return nil
+}
+
+// pickAgents chooses access for an invited member when --agent is not given.
+// A single agent is granted by default. With several, the administrator is
+// asked on a terminal; without one the member gets no access and a warning.
+// Prompts go to stderr so that -q still prints only the link.
+func pickAgents(confDir string) ([]string, error) {
+	all, err := agentNames(confDir)
+	if err != nil {
+		return nil, err
+	}
+	switch {
+	case len(all) == 0:
+		fmt.Fprintln(os.Stderr, "No agents yet. Give access later: laavud access grant USER AGENT")
+		return nil, nil
+	case len(all) == 1:
+		fmt.Fprintf(os.Stderr, "Access to: %s (the only agent)\n", all[0])
+		return all, nil
+	}
+	if !term.IsTerminal(int(os.Stdin.Fd())) {
+		fmt.Fprintf(os.Stderr, "No access to agents: there are several (%s) and no --agent.\n"+
+			"Give access later: laavud access grant USER AGENT\n", strings.Join(all, ", "))
+		return nil, nil
+	}
+	fmt.Fprintln(os.Stderr, "Agents:")
+	for i, a := range all {
+		fmt.Fprintf(os.Stderr, "  %d) %s\n", i+1, a)
+	}
+	in := bufio.NewReader(os.Stdin)
+	for {
+		fmt.Fprint(os.Stderr, "Access to (numbers or names, comma-separated; \"all\"; empty for none): ")
+		line, err := in.ReadString('\n')
+		if err != nil && line == "" {
+			return nil, err
+		}
+		got, perr := parsePick(strings.TrimSpace(line), all)
+		if perr == nil {
+			if len(got) == 0 {
+				fmt.Fprintln(os.Stderr, "No access to agents. Give it later: laavud access grant USER AGENT")
+			} else {
+				fmt.Fprintf(os.Stderr, "Access to: %s\n", strings.Join(got, ", "))
+			}
+			return got, nil
+		}
+		fmt.Fprintln(os.Stderr, perr)
+	}
+}
+
+// parsePick turns an answer like "1, research" into agent names.
+func parsePick(answer string, all []string) ([]string, error) {
+	if answer == "all" {
+		return all, nil
+	}
+	var out []string
+	seen := map[string]bool{}
+	for _, f := range strings.Split(answer, ",") {
+		f = strings.TrimSpace(f)
+		if f == "" {
+			continue
+		}
+		name := ""
+		if n, err := strconv.Atoi(f); err == nil && n >= 1 && n <= len(all) {
+			name = all[n-1]
+		} else {
+			for _, a := range all {
+				if a == f {
+					name = a
+				}
+			}
+		}
+		if name == "" {
+			return nil, fmt.Errorf("no such agent: %s", f)
+		}
+		if !seen[name] {
+			seen[name] = true
+			out = append(out, name)
+		}
+	}
+	return out, nil
+}
+
+// access manages access entries: a member sees only the agents granted here.
+// The daemon checks them on every request, so changes apply without a restart.
+func access(args []string) error {
+	if done, err := asLaavud(); done {
+		return err
+	}
+	fs := flag.NewFlagSet("access", flag.ExitOnError)
+	confDir := fs.String("config-dir", config.Dir, "configuration directory")
+	const use = "usage: laavud access grant|revoke USER AGENT... | laavud access list [USER] | laavud access drop AGENT"
+	if len(args) == 0 {
+		return errors.New(use)
+	}
+	op := args[0]
+	fs.Parse(args[1:])
+	rest := fs.Args()
+	st, _, err := openStore(*confDir)
+	if err != nil {
+		return err
+	}
+	defer st.Close()
+	switch op {
+	case "grant", "revoke":
+		if len(rest) < 2 {
+			return errors.New(use)
+		}
+		u, err := st.UserByName(rest[0])
+		if err != nil {
+			return fmt.Errorf("user %s: %w", rest[0], err)
+		}
+		for _, a := range rest[1:] {
+			if op == "revoke" {
+				err = st.RevokeAccess(u.ID, a)
+			} else if err = agentExists(*confDir, a); err == nil {
+				err = st.GrantAccess(u.ID, a)
+			}
+			if err != nil {
+				return err
+			}
+		}
+		if u.Admin() {
+			fmt.Printf("%s is an admin and sees all agents regardless of access entries\n", u.Name)
+		}
+		return nil
+	case "drop":
+		// The agent's file is usually gone by now, so the name is not checked against it.
+		if len(rest) != 1 {
+			return errors.New(use)
+		}
+		return st.DropAgent(rest[0])
+	case "list":
+		if len(rest) > 1 {
+			return errors.New(use)
+		}
+		users, err := st.Users()
+		if err != nil {
+			return err
+		}
+		for _, u := range users {
+			if len(rest) == 1 && u.Name != rest[0] {
+				continue
+			}
+			agents := "(admin: all)"
+			if !u.Admin() {
+				list, err := st.AgentsOf(u.ID)
+				if err != nil {
+					return err
+				}
+				agents = strings.Join(list, " ")
+				if agents == "" {
+					agents = "(none)"
+				}
+			}
+			fmt.Printf("%s\t%s\n", u.Name, agents)
+		}
+		return nil
+	}
+	return errors.New(use)
 }
 
 // dev runs the daemon and worker in one process as the current user, without

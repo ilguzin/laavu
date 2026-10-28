@@ -386,6 +386,10 @@ func DeleteAgent(name string, keepHome bool, out io.Writer) error {
 	}
 	os.RemoveAll(filepath.Join(SystemdDir, fmt.Sprintf("user-%d.slice.d", ag.UID)))
 	os.Remove(filepath.Join(agentsDir(), name+".toml"))
+	// Users' access goes too: otherwise a new agent with this name would inherit it.
+	if err := run("runuser", "-u", "laavud", "--", LaavudBin(), "access", "drop", "--config-dir", ConfDir, name); err != nil {
+		fmt.Fprintln(out, "Access to the agent was not removed, run: laavud access drop", name, "-", err)
+	}
 	run("systemctl", "daemon-reload")
 	if err := SyncNftables(); err != nil {
 		return err

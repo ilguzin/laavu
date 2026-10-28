@@ -270,7 +270,7 @@ Ceremonies (data between `begin` and `finish`) live in memory for 5 minutes and 
 
 **Sign-in sessions.** After registration or sign-in (`Daemon.login`), a `login_sessions` row is created for 30 days (`LoginTTL`) with the token hash and user agent. Cookie `__Host-laavu`: `HttpOnly`, `Secure`, `SameSite=Strict`, `Path=/`, no `Domain`, so it is not sent to the view and dev-server subdomains. There is no renewal: after 30 days you have to sign in again.
 
-**Roles.** `admin` and `member` (`CHECK` in the schema). An admin sees all agents. A member sees an agent only if there is an entry in `access`. The admin role can be granted only with `laavud admin add`. There is no API for managing users and access, and nothing calls `Store.GrantAccess`: a member registered via `laavud invite` currently sees no agents at all. In the design this is "later" for the MVP.
+**Roles.** `admin` and `member` (`CHECK` in the schema). An admin sees all agents. A member sees an agent only if there is an entry in `access`. The admin role can be granted only with `laavud admin add`. Access is managed from the server's command line: `laavud invite --agent` stores the agents with the link (table `invite_access`, removed together with the link), and `FinishRegister` grants them when the new user is created; `laavud access grant|revoke` changes it later. There is no API for managing users and access in the client yet.
 
 ### Database
 
@@ -282,6 +282,7 @@ Ceremonies (data between `begin` and `finish`) live in memory for 5 minutes and 
 | `credentials` | passkey: serialized `webauthn.Credential`, device label, last sign-in time |
 | `login_sessions` | cookie token hash, user, expiry, user agent |
 | `invites` | link token hash, user (empty means new), role, name, expiry |
+| `invite_access` | agents a new user from the link gets access to |
 | `access` | user/agent pairs |
 | `push_subs` | endpoint, user, subscription JSON |
 | `kv` | VAPID keys |

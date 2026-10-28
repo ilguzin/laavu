@@ -41,6 +41,7 @@ type ceremony struct {
 	data    webauthn.SessionData
 	user    *store.User
 	invite  string
+	agents  []string // access for a new user from the link
 	expires time.Time
 }
 
@@ -194,7 +195,7 @@ func (a *Auth) BeginRegister(tok, name string) (any, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	return opts, a.putCeremony(ceremony{data: *data, user: u, invite: tok}), nil
+	return opts, a.putCeremony(ceremony{data: *data, user: u, invite: tok, agents: inv.Agents}), nil
 }
 
 // FinishRegister completes registration, consumes the link and returns the user.
@@ -218,6 +219,11 @@ func (a *Auth) FinishRegister(cid, label string, r *http.Request) (*store.User, 
 	if u.ID == 0 {
 		if u, err = a.Store.CreateUserWithHandle(u.Name, u.Role, u.Handle); err != nil {
 			return nil, err
+		}
+		for _, ag := range c.agents {
+			if err := a.Store.GrantAccess(u.ID, ag); err != nil {
+				return nil, err
+			}
 		}
 	}
 	data, _ := json.Marshal(cred)

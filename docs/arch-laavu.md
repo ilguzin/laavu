@@ -40,10 +40,12 @@ Argument parsing is in `cmd/laavu/main.go`. Almost every command needs root and 
 | `laavud priv nft-sync` | rewrite and load the nftables rules; not shown in the help |
 | `laavud priv probe JSON` | an isolation probe as the agent; does not need root, called from `CheckIsolation` |
 | `laavud reset-auth` | erase all passkeys and sign-ins, print an administrator registration link |
-| `laavud invite [--admin] [--name] [-q] [--if-no-admin]` | a single-use registration link; `--if-no-admin` does nothing if an administrator already exists |
+| `laavud invite [--admin] [--name] [--agent] [-q] [--if-no-admin]` | a single-use registration link; `--if-no-admin` does nothing if an administrator already exists. A member gets access to the `--agent` agents (repeatable or comma-separated) once registered. Without `--agent` a single agent is granted by default; with several, the command asks on a terminal and grants nothing without one |
 | `laavud admin add NAME` | grant the administrator role |
+| `laavud access grant\|revoke USER AGENT...`, `laavud access list [USER]` | a member's access to agents; applies without a restart, the client picks up new agents on reload |
+| `laavud access drop AGENT` | remove everyone's access to the agent, including access promised by unused links; called by agent deletion |
 
-When `reset-auth`, `invite` and `admin` are run as root, they re-exec themselves as the `laavud` user through `runuser` (`asLaavud`). The database belongs to `laavud`, and SQLite journal files owned by root would break the daemon.
+When `reset-auth`, `invite`, `admin` and `access` are run as root, they re-exec themselves as the `laavud` user through `runuser` (`asLaavud`). The database belongs to `laavud`, and SQLite journal files owned by root would break the daemon.
 
 ## `laavu install`
 
@@ -147,7 +149,7 @@ The template `deploy/agent/CLAUDE.md.tmpl` is filled with the name, user, ports 
 
 **nftables** (`internal/priv/nft.go`). `NftRules` builds the `inet laavu` table with an `output` chain. For each agent there's `oif "lo" tcp dport <its range> meta skuid { uids of the other agents } reject with tcp reset`. The agent itself, `laavud` and root aren't in the set, so they can connect. The table is replaced atomically (`table … delete table … table {…}` in one file). `SyncNftables` writes `/etc/laavu/nftables.nft`, loads it with `nft -f` and enables `laavu-nftables.service`, which loads the same file at boot (`Before=network-pre.target`, `After=ufw.service`). The stock `nftables.service` isn't used because it starts with `flush ruleset` and would wipe UFW. `TestNftRules` checks the rules for three agents and checks that a single agent gets no rules.
 
-**Deletion** (`DeleteAgent`) stops the worker socket and service, then runs `disable-linger`, `terminate-user`, `pkill -KILL -u`, `userdel --remove`, and removes the home. With `--keep-home` the home is moved to `/srv/laavu/deleted/<name>-<time>` instead. The slice drop-in and `agents/<name>.toml` are deleted, the nftables rules are rebuilt and `laavud` restarts.
+**Deletion** (`DeleteAgent`) stops the worker socket and service, then runs `disable-linger`, `terminate-user`, `pkill -KILL -u`, `userdel --remove`, and removes the home. With `--keep-home` the home is moved to `/srv/laavu/deleted/<name>-<time>` instead. The slice drop-in and `agents/<name>.toml` are deleted, users' access to the agent is removed with `laavud access drop` (so a new agent with the same name does not inherit it), the nftables rules are rebuilt and `laavud` restarts.
 
 **Limits** (`limitsCmd`) merges the new keys into the existing drop-in, writes it back and applies it right away with `systemctl set-property --runtime`.
 
