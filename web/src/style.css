@@ -1081,6 +1081,18 @@ a {
 .md img {
   max-width: 100%;
 }
+.md details {
+  margin: 0.8em 0;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.md summary {
+  cursor: pointer;
+}
+.md details[open] > summary {
+  margin-bottom: 0.4em;
+}
 .md code {
   font-size: 0.9em;
   background: var(--bg2);

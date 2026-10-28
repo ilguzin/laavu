@@ -1,12 +1,13 @@
-// Markdown rendering: KaTeX, highlighting, a source line map. Raw HTML is off
-// because Markdown renders on the app's origin. The module loads lazily.
+// Markdown rendering: KaTeX, highlighting, a source line map. Raw HTML passes
+// only through safeHtml because Markdown renders on the app's origin. The module loads lazily.
 import MarkdownIt from 'markdown-it'
 import katexPlugin from '@vscode/markdown-it-katex'
 import 'katex/dist/katex.min.css'
 import hljs from 'highlight.js/lib/common'
+import { safeHtml } from './html'
 
 const md = new MarkdownIt({
-  html: false,
+  html: true,
   linkify: true,
   typographer: false,
   highlight(code, lang) {
@@ -19,6 +20,8 @@ const md = new MarkdownIt({
   },
 })
 md.use((katexPlugin as any).default || katexPlugin, { throwOnError: false })
+md.renderer.rules.html_block = (tokens, idx) => safeHtml(tokens[idx].content)
+md.renderer.rules.html_inline = (tokens, idx) => safeHtml(tokens[idx].content)
 
 // Each block carries its source line number, so a selection goes to the session as file:line.
 md.core.ruler.push('source_line', (state) => {

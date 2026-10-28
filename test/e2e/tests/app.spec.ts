@@ -76,7 +76,7 @@ test('agent session: status, terminal input, files in tabs, preview, upload, cha
   // Markdown with a formula, mermaid, and html on the preview origin.
   const home = agentHome(7700)
   mkdirSync(join(home, 'Proj', 'docs'), { recursive: true })
-  writeFileSync(join(home, 'Proj', 'docs', 'note.md'), '# Heading\n\nFormula $x^2$.\n\n![pic](pic.svg)\n\n```mermaid\ngraph TD; A-->B\n```\n')
+  writeFileSync(join(home, 'Proj', 'docs', 'note.md'), '# Heading\n\nFormula $x^2$.\n\n![pic](pic.svg)\n\n```mermaid\ngraph TD; A-->B\n```\n\n<details><summary><b>Hint</b></summary>\n\nHidden $y$.\n\n</details>\n\n<img src=x onerror="document.title=1">\n')
   writeFileSync(join(home, 'Proj', 'docs', 'pic.svg'), '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10"/></svg>')
   writeFileSync(join(home, 'Proj', 'page.html'), '<!doctype html><body><div id="r"></div><script>document.getElementById("r").textContent="html-" + (6*7)</script></body>')
   await page.locator('.tree .entry[data-path="docs"]').click()
@@ -87,6 +87,13 @@ test('agent session: status, terminal input, files in tabs, preview, upload, cha
   await expect(page.locator(`${shown} .viewer .md .katex`).first()).toBeVisible()
   await expect(page.locator(`${shown} .viewer .md img`)).toHaveAttribute('src', /^http:\/\/localhost:7701\/t\/[^/]+\/docs\/pic\.svg$/)
   await expect(page.locator(`${shown} .viewer .md .mermaid svg`)).toBeVisible({ timeout: 20_000 })
+  // Raw HTML: details and summary work, other tags stay text.
+  await expect(page.locator(`${shown} .viewer .md details summary b`)).toHaveText('Hint')
+  await expect(page.locator(`${shown} .viewer .md details .katex`)).toBeHidden()
+  await page.locator(`${shown} .viewer .md summary`).click()
+  await expect(page.locator(`${shown} .viewer .md details .katex`)).toBeVisible()
+  await expect(page.locator(`${shown} .viewer .md img[onerror]`)).toHaveCount(0)
+  await expect(page.locator(`${shown} .viewer .md`)).toContainText('<img src=x')
   // Double click pins the tab.
   await page.locator('.tab.file[data-file="docs/note.md"]').dblclick()
   await expect(page.locator('.tab.file.preview')).toHaveCount(0)

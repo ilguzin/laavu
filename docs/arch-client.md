@@ -212,7 +212,7 @@ The **file tab** (`FileView.tsx`) loads `GET text` and reloads it when its path 
 
 | Kind | How it is shown |
 |---|---|
-| Markdown | `render/markdown.ts`: markdown-it without raw HTML, KaTeX, highlight.js in code blocks, mermaid with `securityLevel: 'strict'`; headings get GitHub-style ids (`slug`); relative links open the file in a tab, and a `#anchor` scrolls to the heading, in the same file or after opening the other one (`pendingAnchors` in `Viewer.tsx`); images come from the view origin; blocks carry `data-source-line` |
+| Markdown | `render/markdown.ts`: markdown-it with raw HTML reduced by `render/html.ts` to `details`, `summary` and a few inline tags without attributes (the rest shows as text, comments are dropped), KaTeX, highlight.js in code blocks, mermaid with `securityLevel: 'strict'`; headings get GitHub-style ids (`slug`); relative links open the file in a tab, and a `#anchor` scrolls to the heading, in the same file or after opening the other one (`pendingAnchors` in `Viewer.tsx`); images come from the view origin; blocks carry `data-source-line` |
 | Code, text, source | `render/highlight.ts`: highlight.js by extension, line numbers; over 400,000 characters, no highlighting |
 | HTML | `iframe` from the view origin, `sandbox="allow-scripts allow-forms allow-popups"`, `referrerpolicy="no-referrer"` |
 | SVG, images | `<img>` from the view origin |
