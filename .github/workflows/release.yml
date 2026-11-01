@@ -33,7 +33,7 @@ jobs:
             || { echo "::error::$GITHUB_REF_NAME points to a commit that is not on main"; exit 1; }
           [ -n "$PROJECT_KEY" ] \
             || { echo "::error::repository variable LAAVU_PROJECT_KEY is empty, binaries would not know the project key"; exit 1; }
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
       - uses: actions/setup-node@v4
