@@ -37,6 +37,6 @@
     "markdown-it": "^15.0.3",
     "mermaid": "^12.2.0",
     "pdfjs-dist": "^6.4.299",
-    "preact": "^11.0.2"
+    "preact": "^11.1.0"
   }
 }
